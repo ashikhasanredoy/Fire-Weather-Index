@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FWI Predictor — Predict Fire Risk</title>
+  <meta name="description" content="Enter weather parameters to get an instant Fire Weather Index prediction using machine learning."/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --fire-1: #ff4500;
+      --fire-2: #ff7b00;
+      --fire-3: #ffcc00;
+      --dark-bg: #0a0a0f;
+      --card-bg: rgba(255,255,255,0.04);
+      --card-hover: rgba(255,255,255,0.07);
+      --border: rgba(255,120,0,0.18);
+      --border-focus: rgba(255,120,0,0.55);
+      --input-bg: rgba(255,255,255,0.05);
+      --text-primary: #f0f0f0;
+      --text-muted: #7a7a8c;
+      --text-label: #b0b0c0;
+      --success: #22c55e;
+    }
+
+    html, body {
+      min-height: 100%;
+      font-family: 'Inter', sans-serif;
+      background: var(--dark-bg);
+      color: var(--text-primary);
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 50% 110%, rgba(255,69,0,0.15) 0%, transparent 70%),
+        radial-gradient(ellipse 35% 25% at 10% 90%, rgba(255,123,0,0.08) 0%, transparent 55%),
+        radial-gradient(ellipse 35% 25% at 90% 90%, rgba(255,50,0,0.08) 0%, transparent 55%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    #particles { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+    .layout {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 60px;
+    }
+
+    /* Top nav */
+    .topnav {
+      width: 100%;
+      max-width: 940px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 48px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--fire-1), var(--fire-3));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      box-shadow: 0 4px 14px rgba(255,69,0,0.4);
+    }
+    .logo-text {
+      font-weight: 800;
+      font-size: 1.05rem;
+      background: linear-gradient(135deg, #fff, var(--fire-2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .nav-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(34,197,94,0.1);
+      border: 1px solid rgba(34,197,94,0.25);
+      border-radius: 50px;
+      padding: 6px 14px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--success);
+    }
+    .nav-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 44px;
+    }
+    .header h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 900;
+      background: linear-gradient(135deg, #fff 0%, #ffd0a0 50%, var(--fire-1) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+      animation: fadeUp 0.6s ease both;
+    }
+    .header p {
+      font-size: 1rem;
+      color: var(--text-muted);
+      animation: fadeUp 0.6s ease 0.1s both;
+    }
+
+    /* Card */
+    .card {
+      width: 100%;
+      max-width: 860px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 44px 44px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset;
+      animation: fadeUp 0.6s ease 0.15s both;
+    }
+
+    .form-section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--fire-2);
+      margin-bottom: 24px;
+    }
+    .form-section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Grid */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      margin-bottom: 32px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .field label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-label);
+      letter-spacing: 0.02em;
+    }
+    .field label .icon {
+      width: 22px; height: 22px;
+      background: rgba(255,120,0,0.12);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+    }
+    .field input {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 13px 16px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+      width: 100%;
+    }
+    .field input::placeholder { color: rgba(255,255,255,0.2); }
+    .field input:focus {
+      border-color: var(--border-focus);
+      background: rgba(255,120,0,0.06);
+      box-shadow: 0 0 0 3px rgba(255,120,0,0.1);
+    }
+    .field input:hover:not(:focus) { border-color: rgba(255,120,0,0.35); }
+    .field .hint {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 8px 0 32px;
+    }
+
+    /* Submit row */
+    .submit-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .submit-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .submit-info svg { flex-shrink: 0; opacity: 0.5; }
+
+    .submit-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(135deg, var(--fire-1) 0%, #ff6500 50%, var(--fire-2) 100%);
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      padding: 15px 36px;
+      border-radius: 50px;
+      box-shadow: 0 8px 28px rgba(255,69,0,0.35);
+      transition: transform 0.2s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .submit-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent);
+      border-radius: inherit;
+    }
+    .submit-btn:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 14px 40px rgba(255,69,0,0.5);
+    }
+    .submit-btn:active { transform: scale(0.98); }
+    .submit-btn svg { flex-shrink: 0; }
+
+    /* Result */
+    .result-wrapper {
+      margin-top: 28px;
+      animation: resultPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+    .result-card {
+      background: linear-gradient(135deg, rgba(255,69,0,0.12), rgba(255,123,0,0.06));
+      border: 1px solid rgba(255,120,0,0.4);
+      border-radius: 18px;
+      padding: 28px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .result-card::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 140px; height: 140px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,100,0,0.15), transparent 70%);
+    }
+    .result-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--fire-2);
+      margin-bottom: 6px;
+    }
+    .result-value {
+      font-size: 3.2rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--fire-3), var(--fire-2), var(--fire-1));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+    .result-unit {
+      font-size: 1rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Risk meter */
+    .risk-meter { min-width: 200px; }
+    .risk-title {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .meter-bar {
+      height: 8px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 50px;
+      overflow: hidden;
+    }
+    .meter-fill {
+      height: 100%;
+      border-radius: 50px;
+      background: linear-gradient(90deg, var(--fire-3), var(--fire-2), var(--fire-1));
+      transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .risk-levels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+    .risk-badge {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 4px 12px;
+      border-radius: 50px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    /* Responsive */
+    @media (max-width: 700px) {
+      .card { padding: 28px 20px; }
+      .form-grid { grid-template-columns: 1fr 1fr; }
+      .submit-row { justify-content: center; }
+      .submit-info { display: none; }
+    }
+    @media (max-width: 480px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes resultPop {
+      from { opacity: 0; transform: scale(0.92) translateY(12px); }
+      to   { opacity: 1; transform: scale(1)    translateY(0); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="particles"></canvas>
+
+  <div class="layout">
+    <!-- Nav -->
+    <nav class="topnav">
+      <a href="/" class="logo">
+        <div class="logo-icon">🔥</div>
+        <span class="logo-text">FWI Predictor</span>
+      </a>
+      <div class="nav-badge">
+        <div class="nav-dot"></div>
+        Model Active
+      </div>
+    </nav>
+
+    <!-- Header -->
+    <div class="header">
+      <h1>Predict Fire Weather Index</h1>
+      <p>Enter your weather parameters below to get an instant wildfire risk score</p>
+    </div>
+
+    <!-- Main Card -->
+    <div class="card">
+      <form action="{{ url_for('predict_datapoint') }}" method="post" id="predict-form">
+
+        <div class="form-section-title">Atmospheric Parameters</div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="Temperature"><span class="icon">🌡️</span> Temperature</label>
+            <input type="number" step="any" id="Temperature" name="Temperature" placeholder="e.g. 32.5" required/>
+            <span class="hint">Degrees Celsius (°C)</span>
+          </div>
+          <div class="field">
+            <label for="RH"><span class="icon">💧</span> Relative Humidity</label>
+            <input type="number" step="any" id="RH" name="RH" placeholder="e.g. 45" required/>
+            <span class="hint">Percentage (%)</span>
+          </div>
+          <div class="field">
+            <label for="Ws"><span class="icon">🌬️</span> Wind Speed</label>
+            <input type="number" step="any" id="Ws" name="Ws" placeholder="e.g. 18" required/>
+            <span class="hint">km/h</span>
+          </div>
+          <div class="field">
+            <label for="Rain"><span class="icon">🌧️</span> Rainfall</label>
+            <input type="number" step="any" id="Rain" name="Rain" placeholder="e.g. 0" required/>
+            <span class="hint">mm (24h accumulation)</span>
+          </div>
+        </div>
+
+        <div class="form-section-title">Fire Weather Indices</div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="FFMC"><span class="icon">🔥</span> FFMC</label>
+            <input type="number" step="any" id="FFMC" name="FFMC" placeholder="e.g. 85.4" required/>
+            <span class="hint">Fine Fuel Moisture Code</span>
+          </div>
+          <div class="field">
+            <label for="DMC"><span class="icon">🌿</span> DMC</label>
+            <input type="number" step="any" id="DMC" name="DMC" placeholder="e.g. 26.2" required/>
+            <span class="hint">Duff Moisture Code</span>
+          </div>
+          <div class="field">
+            <label for="ISI"><span class="icon">📊</span> ISI</label>
+            <input type="number" step="any" id="ISI" name="ISI" placeholder="e.g. 5.1" required/>
+            <span class="hint">Initial Spread Index</span>
+          </div>
+        </div>
+
+        <div class="form-section-title">Classification</div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="Classes"><span class="icon">🗂️</span> Fire Classes</label>
+            <input type="number" step="any" id="Classes" name="Classes" placeholder="e.g. 1" required/>
+            <span class="hint">Fire size class (0 = not fire)</span>
+          </div>
+          <div class="field">
+            <label for="Region"><span class="icon">📍</span> Region</label>
+            <input type="number" step="any" id="Region" name="Region" placeholder="e.g. 0 or 1" required/>
+            <span class="hint">0 = Bejaia, 1 = Sidi-Bel Abbes</span>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="submit-row">
+          <div class="submit-info">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            All fields are required for an accurate prediction.
+          </div>
+          <button type="submit" class="submit-btn" id="submit-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+            Run Prediction
+          </button>
+        </div>
+      </form>
+
+      <!-- Result Section -->
+      {% if results is defined %}
+      <div class="result-wrapper" id="result-section">
+        <div class="result-card">
+          <div>
+            <div class="result-label">🔥 FWI Prediction Score</div>
+            <div class="result-value" id="result-num">{{ "%.2f"|format(results) }}</div>
+            <div class="result-unit">Fire Weather Index (FWI)</div>
+          </div>
+          <div class="risk-meter">
+            <div class="risk-title">Risk Level Indicator</div>
+            <div class="meter-bar">
+              <div class="meter-fill" id="meter-fill" style="width: 0%"></div>
+            </div>
+            <div class="risk-levels">
+              <span>Low</span><span>Moderate</span><span>High</span><span>Extreme</span>
+            </div>
+            <div class="risk-badge" id="risk-badge"></div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        // Animate risk meter based on FWI value
+        const fwi = parseFloat("{{ results }}");
+        const maxFWI = 80;
+        const pct = Math.min((fwi / maxFWI) * 100, 100);
+        const fill = document.getElementById('meter-fill');
+        const badge = document.getElementById('risk-badge');
+
+        setTimeout(() => { fill.style.width = pct + '%'; }, 100);
+
+        let level, color, bg;
+        if (fwi < 10)       { level = 'Low Risk';      color = '#22c55e'; bg = 'rgba(34,197,94,0.15)'; }
+        else if (fwi < 20)  { level = 'Moderate Risk'; color = '#f59e0b'; bg = 'rgba(245,158,11,0.15)'; }
+        else if (fwi < 40)  { level = 'High Risk';     color = '#f97316'; bg = 'rgba(249,115,22,0.15)'; }
+        else                 { level = 'Extreme Risk';  color = '#ef4444'; bg = 'rgba(239,68,68,0.15)'; }
+
+        badge.textContent = level;
+        badge.style.color = color;
+        badge.style.background = bg;
+        badge.style.border = `1px solid ${color}40`;
+      </script>
+      {% endif %}
+    </div>
+  </div>
+
+  <script>
+    // Particle system
+    const canvas = document.getElementById('particles');
+    const ctx = canvas.getContext('2d');
+    let W, H, parts = [];
+    function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize); resize();
+
+    class P {
+      constructor() { this.reset(); }
+      reset() {
+        this.x = Math.random() * W;
+        this.y = H + 10;
+        this.r = Math.random() * 2.5 + 0.5;
+        this.vy = -(Math.random() * 0.7 + 0.2);
+        this.vx = (Math.random() - 0.5) * 0.3;
+        this.a = Math.random() * 0.5 + 0.08;
+        this.hue = Math.random() * 35 + 8;
+      }
+      tick() {
+        this.x += this.vx; this.y += this.vy; this.a -= 0.0015;
+        if (this.y < -10 || this.a <= 0) this.reset();
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${this.hue},100%,62%,${this.a})`;
+        ctx.fill();
+      }
+    }
+    for (let i = 0; i < 70; i++) { const p = new P(); p.y = Math.random() * H; parts.push(p); }
+    (function loop() { ctx.clearRect(0,0,W,H); parts.forEach(p=>{p.tick();p.draw();}); requestAnimationFrame(loop); })();
+
+    // Loading state on submit
+    const form = document.getElementById('predict-form');
+    const btn  = document.getElementById('submit-btn');
+    form.addEventListener('submit', () => {
+      btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Predicting...`;
+      btn.style.opacity = '0.75';
+      btn.disabled = true;
+    });
+  </script>
+</body>
+</html>

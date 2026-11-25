@@ -58,7 +58,7 @@ The core of the application is a **Multiple Linear Regression** model.
    ```
 
 4. **Access the App**:
-   Navigate to `http://127.0.0.1:5001` in your web browser.
+   Navigate to `http://127.0.0.1:5001` in your web browser..
 
 ---
 *Developed for Forest Fire Prevention and AI Research.*(Claude)

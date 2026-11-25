@@ -61,4 +61,4 @@ The core of the application is a **Multiple Linear Regression** model.
    Navigate to `http://127.0.0.1:5001` in your web browser.
 
 ---
-*Developed for Forest Fire Prevention and AI Research.*
+*Developed for Forest Fire Prevention and AI Research.*(Claude)
